@@ -1,39 +1,35 @@
 import requests
-import time
 import os
+import schedule
+import time
 from bs4 import BeautifulSoup
 import telegram
 
-TELEGRAM_TOKEN = os.environ.get('TELEGRAM_TOKEN')
-TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
-TARGET_URL = os.environ.get('TARGET_URL')
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+TARGET_URL = os.environ.get("TARGET_URL")
 
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
+last_known = ""
 
-def fetch_latest_records():
-    headers = {
-        'User-Agent': 'Mozilla/5.0'
-    }
-    response = requests.get(TARGET_URL, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    # 根據實際的 HTML 結構調整以下選擇器
-    records = soup.select('.css-1vuj9rf')  # 假設這是每筆紀錄的 class
-    return [record.get_text(strip=True) for record in records]
+def check_latest_records():
+    global last_known
+    try:
+        res = requests.get(TARGET_URL, headers={'User-Agent': 'Mozilla/5.0'})
+        soup = BeautifulSoup(res.text, 'html.parser')
+        records = soup.find_all("div", string=lambda t: t and "position" in t.lower())
+        if records:
+            latest = records[0].text.strip()
+            if latest != last_known:
+                bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"📈 Binance 最新交易：\n{latest}")
+                last_known = latest
+    except Exception as e:
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 檢查錯誤：{e}")
 
-def main():
-    previous_records = set()
-    while True:
-        try:
-            current_records = set(fetch_latest_records())
-            new_records = current_records - previous_records
-            if new_records:
-                message = "📈 Binance 最新交易紀錄出現變動！\n" + "\n".join(new_records)
-                bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-                previous_records = current_records
-            time.sleep(600)  # 每 10 分鐘檢查一次
-        except Exception as e:
-            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"發生錯誤：{e}")
-            time.sleep(600)
+schedule.every(10).minutes.do(check_latest_records)
 
 if __name__ == "__main__":
-    main()
+    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ 監控程式已啟動")
+    while True:
+        schedule.run_pending()
+        time.sleep(5)
