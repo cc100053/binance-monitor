@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 import telegram
 from flask import Flask
 import threading
+import asyncio
+
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -34,15 +36,20 @@ def check_latest_records():
         if records:
             latest = records[0].text.strip()
             if latest != last_known:
-                bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"📈 Binance 最新交易：\n{latest}")
+                asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"📈 Binance 最新交易：\n{latest}"))
+
                 last_known = latest
     except Exception as e:
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 檢查錯誤：{e}")
+        asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 檢查錯誤：{e}"))
+
 
 schedule.every(10).minutes.do(check_latest_records)
 
 def start_scheduler():
-    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ 監控程式已啟動")
+    import asyncio
+
+asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ 監控程式已啟動"))
+
     while True:
         schedule.run_pending()
         time.sleep(5)
