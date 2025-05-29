@@ -37,6 +37,9 @@ def check_latest_trade():
         }
 
         response = requests.post(url, json=params, headers=headers)
+        print("🔴 原始回應：", response.text)
+        print("🔴 回應狀態碼：", response.status_code)
+
         data = response.json()
 
         print("🔍 API 回傳內容：", data)
