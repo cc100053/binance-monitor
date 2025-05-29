@@ -31,10 +31,16 @@ def check_trade_history():
     try:
         url = "https://www.binance.com/bapi/copy-trade/api/v1/friendly/copy-trade/lead-history/get-position-history"
         headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0',
-            'Referer': 'https://www.binance.com'
+            'Origin': 'https://www.binance.com',
+            'Referer': 'https://www.binance.com/',
+            'X-Requested-With': 'XMLHttpRequest'
         }
+
         payload = {
             "page": 1,
             "pageSize": 1,
