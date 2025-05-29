@@ -1,35 +1,12 @@
-import os
-import requests
-import schedule
-import time
-from flask import Flask
-import threading
-import telegram
-
-# === 環境變數 ===
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-TRADER_ID = os.environ.get("TRADER_ID")
-
-bot = telegram.Bot(token=TELEGRAM_TOKEN)
-last_trade_key = ""
-
-# === Flask 假 Web Service ===
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return '✅ Binance Monitor is running.'
-
-def start_flask():
-    app.run(host='0.0.0.0', port=10000)
-
-# === Binance 監控邏輯 ===
 def check_latest_trade():
     global last_trade_key
     try:
         url = "https://www.binance.com/bapi/copy-trade/api/v1/friendly/copy-trade/lead-portfolio/page-query"
-        headers = {'Content-Type': 'application/json'}
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0',
+            'Referer': 'https://www.binance.com'
+        }
         params = {
             "page": 1,
             "pageSize": 1,
@@ -37,12 +14,19 @@ def check_latest_trade():
         }
 
         response = requests.post(url, json=params, headers=headers)
-        print("🔴 原始回應：", response.text)
-        print("🔴 回應狀態碼：", response.status_code)
 
-        data = response.json()
+        print("🔍 狀態碼：", response.status_code)
+        print("🔍 回應內容：", response.text[:300])  # 限制前 300 字方便觀察
 
-        print("🔍 API 回傳內容：", data)
+        if response.status_code != 200:
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 請求失敗，狀態碼：{response.status_code}")
+            return
+
+        try:
+            data = response.json()
+        except Exception as e:
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 回應無法解析為 JSON：{e}")
+            return
 
         trade_list = data.get("data", {}).get("openPositionList", [])
         if not trade_list:
@@ -64,21 +48,5 @@ def check_latest_trade():
             print("📉 無變化")
 
     except Exception as e:
-        print("❌ 監控錯誤：", e)
+        print("❌ 其他錯誤：", e)
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 檢查失敗：{e}")
-
-# === 啟動排程器的子線程 ===
-def start_scheduler():
-    def run_scheduler():
-        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ Binance 監控已啟動")
-        while True:
-            schedule.run_pending()
-            time.sleep(5)
-
-    schedule.every(1).minutes.do(check_latest_trade)
-    threading.Thread(target=run_scheduler).start()
-
-# === 主程式 ===
-if __name__ == "__main__":
-    start_scheduler()
-    start_flask()
