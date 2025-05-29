@@ -4,7 +4,6 @@ import schedule
 import time
 from flask import Flask
 import threading
-import asyncio
 import telegram
 
 # === 環境變數 ===
@@ -40,7 +39,7 @@ def check_latest_trade():
         response = requests.post(url, json=params, headers=headers)
         data = response.json()
 
-        print("🔍 API 回傳內容：", data)  # 👉 新增 debug 訊息
+        print("🔍 API 回傳內容：", data)
 
         trade_list = data.get("data", {}).get("openPositionList", [])
         if not trade_list:
@@ -56,19 +55,19 @@ def check_latest_trade():
         trade_key = f"{symbol}-{side}-{entry_price}"
         if trade_key != last_trade_key:
             message = f"📈 新交易紀錄：\n🪙 幣種: {symbol}\n📥 方向: {side}\n💵 入場價: {entry_price}\n📊 未實現盈虧: {pnl}"
-            asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message))
+            bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
             last_trade_key = trade_key
         else:
             print("📉 無變化")
 
     except Exception as e:
         print("❌ 監控錯誤：", e)
-        asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 檢查失敗：{e}"))
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 檢查失敗：{e}")
 
 # === 啟動排程器的子線程 ===
 def start_scheduler():
     def run_scheduler():
-        asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ Binance 監控已啟動"))
+        bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ Binance 監控已啟動")
         while True:
             schedule.run_pending()
             time.sleep(5)
