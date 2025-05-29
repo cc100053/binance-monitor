@@ -72,7 +72,7 @@ def start_scheduler():
             schedule.run_pending()
             time.sleep(5)
 
-    schedule.every(10).minutes.do(check_latest_trade)
+    schedule.every(1).minutes.do(check_latest_trade)
     threading.Thread(target=run_scheduler).start()
 
 # === 主程式 ===
