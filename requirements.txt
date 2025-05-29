@@ -1,4 +1,4 @@
-flask
-schedule
 requests
+schedule
 python-telegram-bot==13.15
+flask
