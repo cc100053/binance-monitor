@@ -7,15 +7,15 @@ import threading
 import asyncio
 import telegram
 
-# 📌 環境變數
+# === 環境變數 ===
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-TRADER_ID = os.environ.get("TRADER_ID")  # 交易員 ID，例如：4466349480575764737
+TRADER_ID = os.environ.get("TRADER_ID")
 
 bot = telegram.Bot(token=TELEGRAM_TOKEN)
 last_trade_key = ""
 
-# ✅ Flask 假 Web 服務，防止 Render 休眠
+# === Flask 假 Web Service ===
 app = Flask(__name__)
 
 @app.route('/')
@@ -25,11 +25,11 @@ def home():
 def start_flask():
     app.run(host='0.0.0.0', port=10000)
 
-# 🔍 主邏輯：查詢 Copy Trading API
+# === Binance 監控邏輯 ===
 def check_latest_trade():
     global last_trade_key
     try:
-        url = f"https://www.binance.com/bapi/copy-trade/api/v1/friendly/copy-trade/lead-portfolio/page-query"
+        url = "https://www.binance.com/bapi/copy-trade/api/v1/friendly/copy-trade/lead-portfolio/page-query"
         headers = {'Content-Type': 'application/json'}
         params = {
             "page": 1,
@@ -40,9 +40,11 @@ def check_latest_trade():
         response = requests.post(url, json=params, headers=headers)
         data = response.json()
 
+        print("🔍 API 回傳內容：", data)  # 👉 新增 debug 訊息
+
         trade_list = data.get("data", {}).get("openPositionList", [])
         if not trade_list:
-            print("❗ 無開倉紀錄")
+            print("📭 尚未開倉")
             return
 
         trade = trade_list[0]
@@ -52,7 +54,6 @@ def check_latest_trade():
         pnl = trade.get("unrealizedPnL", "")
 
         trade_key = f"{symbol}-{side}-{entry_price}"
-
         if trade_key != last_trade_key:
             message = f"📈 新交易紀錄：\n🪙 幣種: {symbol}\n📥 方向: {side}\n💵 入場價: {entry_price}\n📊 未實現盈虧: {pnl}"
             asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message))
@@ -64,15 +65,18 @@ def check_latest_trade():
         print("❌ 監控錯誤：", e)
         asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=f"⚠️ 檢查失敗：{e}"))
 
-# 📆 每 10 分鐘執行一次
-schedule.every(10).minutes.do(check_latest_trade)
-
+# === 啟動排程器的子線程 ===
 def start_scheduler():
-    asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ Binance 監控程式已啟動"))
-    while True:
-        schedule.run_pending()
-        time.sleep(5)
+    def run_scheduler():
+        asyncio.run(bot.send_message(chat_id=TELEGRAM_CHAT_ID, text="✅ Binance 監控已啟動"))
+        while True:
+            schedule.run_pending()
+            time.sleep(5)
 
+    schedule.every(10).minutes.do(check_latest_trade)
+    threading.Thread(target=run_scheduler).start()
+
+# === 主程式 ===
 if __name__ == "__main__":
-    threading.Thread(target=start_scheduler).start()
+    start_scheduler()
     start_flask()
